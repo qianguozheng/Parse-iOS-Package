@@ -1337,4 +1337,5 @@ int main(int argc, char *argv[])
 	
 	memset(newpng, 0, sizeof(newpng));
 	extract(argv[1]);
+	return 0;
 }

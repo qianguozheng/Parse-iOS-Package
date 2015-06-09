@@ -47,7 +47,8 @@
 #include <inttypes.h>
 #include <limits.h>
 #include <stdarg.h>
-
+#include <io.h>
+#include "iconv.h"
 
 
 #ifdef WIN32
@@ -120,6 +121,28 @@ static int write_png_data(const char *filename, const char *pngdata, uint32_t si
 	fclose(fp);
 	
 	return written;
+}
+
+/* convert UTF-8 to GB2312 */
+
+int code_convert( char *from_charset, char *to_charset, const char *inbuf, size_t inlen, char *outbuf, size_t outlen)
+{
+	iconv_t cd;
+	int rc;
+	const char **pin = &inbuf;
+	char **pout = &outbuf;
+
+	cd = iconv_open(to_charset, from_charset);
+	if (0 == cd) return -1;
+	memset(outbuf, 0, outlen);
+	if (iconv(cd, pin, &inlen, pout, &outlen) == -1) return -1;
+	iconv_close(cd);
+	return 0;
+}
+
+int u2g(char *inbuf, size_t inlen, char *outbuf, size_t outlen)
+{
+	return code_convert("utf-8", "gb2312", inbuf, inlen, outbuf, outlen);
 }
 
 /*static int write_png_data(const char *filename, const char **pngdata, uint32_t size)
@@ -684,6 +707,46 @@ static char *base64encode(const unsigned char *buf, size_t size)
 
 static void plist_node_print_to_stream(plist_t node, int* indent_level, char* stream);
 
+
+/*
+ 60x60@2x
+ icon-120
+ icon120x120
+*/
+struct icon_array{
+	int length;
+	char icon[20][128];
+} totalIcons;
+
+static void plist_node_item(plist_t node, int* indent_level, int i)
+{
+	char *s = NULL;
+	char *data = NULL;
+	double d;
+	uint8_t b;
+	uint64_t u = 0;
+	struct timeval tv = { 0, 0 };
+
+	plist_type t;
+
+	if (!node)
+		return;
+
+	t = plist_get_node_type(node);
+
+	switch (t) {
+
+	case PLIST_STRING:
+		plist_get_string_val(node, &s);
+		
+		sprintf(totalIcons.icon[i], "%s", s);
+		//DEBUG("totalIcons=%s\n", totalIcons.icon[i]);
+		free(s);
+		break;
+	default:
+		break;
+	}
+}
 static void plist_array_print_to_stream(plist_t node, int* indent_level, char* stream)
 {
 	/* iterate over items */
@@ -691,13 +754,14 @@ static void plist_array_print_to_stream(plist_t node, int* indent_level, char* s
 	plist_t subnode = NULL;
 
 	count = plist_array_get_size(node);
-	i = 0;
-	//for (i = 0; i < count; i++) {
+	totalIcons.length = count;
+	for (i = 0; i < count; i++) {
 		subnode = plist_array_get_item(node, i);
 		//fprintf(stream, "%*s", *indent_level, "");
 		//fprintf(stream, "%d: ", i);
-		plist_node_print_to_stream(subnode, indent_level, stream);
-	//}
+		plist_node_item(subnode, indent_level, i);
+		//DEBUG("totalIcons=%s\n", totalIcons.icon[i]);
+	}
 	
 }
 
@@ -760,8 +824,10 @@ static void plist_node_print_to_stream(plist_t node, int* indent_level, char* st
 
 	case PLIST_STRING:
 		plist_get_string_val(node, &s);
-		bundleicons = strdup(s);
-		free(s);
+		
+		//sprintf(totalIcons.icon[i], "%s", s);
+		//printf("totalIcons=%s\n", totalIcons.icon[i]);
+		//free(s);
 		break;
 
 	case PLIST_KEY:
@@ -950,6 +1016,11 @@ int extract(char * file)
 	//plist_t info = NULL;
 	char *bundleexecutable = NULL;
 	char *bundleidentifier = NULL;
+	char *bundlename = NULL;
+	char *bundledisplayname = NULL;
+	char *bundledevregion = NULL;
+	char *bundleversion = NULL;
+	char *bundlever = NULL;
 	int got_icon = 0;
 	char fulldir[128];
 	
@@ -1044,7 +1115,47 @@ int extract(char * file)
 	bname = plist_dict_get_item(info, "CFBundleIdentifier");
 	if (bname) {
 		plist_get_string_val(bname, &bundleidentifier);
-		printf("bundleidentifier=%s\n", bundleidentifier);
+		printf("CFBundleIdentifier=%s\n", bundleidentifier);
+	}
+	
+	bname = plist_dict_get_item(info, "CFBundleName");
+	if (bname) {
+		plist_get_string_val(bname, &bundlename);
+		char outbuf[512];
+		size_t len=512;
+		memset(outbuf, 0, sizeof(outbuf));
+		//printf("CFBundleName=%s, len=%d\n", bundlename, strlen(bundlename));
+		u2g(bundlename, (size_t)strlen(bundlename), outbuf, len);
+		printf("CFBundleName=%s\n", outbuf);
+	}
+	
+	bname = plist_dict_get_item(info, "CFBundleDisplayName");
+	if (bname) {
+		plist_get_string_val(bname, &bundledisplayname);
+		char outbuf[512];
+		size_t len=512;
+		memset(outbuf, 0, sizeof(outbuf));
+		u2g(bundledisplayname, (size_t)strlen(bundledisplayname), outbuf, len);
+		//printf("CFBundleDisplayName=%s\n", bundledisplayname);
+		printf("CFBundleDisplayName=%s\n", outbuf);
+	}
+	
+	bname = plist_dict_get_item(info, "CFBundleDevelopmentRegion");
+	if (bname) {
+		plist_get_string_val(bname, &bundledevregion);
+		printf("CFBundleDevelopmentRegion=%s\n", bundledevregion);
+	}
+	
+	bname = plist_dict_get_item(info, "CFBundleShortVersionString");
+	if (bname) {
+		plist_get_string_val(bname, &bundleversion);
+		printf("CFBundleShortVersionString=%s\n", bundleversion);
+	}
+	
+	bname = plist_dict_get_item(info, "CFBundleVersion");
+	if (bname) {
+		plist_get_string_val(bname, &bundlever);
+		printf("CFBundleVersion=%s\n", bundlever);
 	}
 	
 	/* App Icons CFBundleIconFiles */
@@ -1055,21 +1166,34 @@ int extract(char * file)
 	bname = plist_dict_get_item(info, "CFBundleIconFiles"); //array
 	if (bname){
 		switch (plist_get_node_type(bname)) {
-			case PLIST_DICT:
-				//plist_dict_print_to_stream(bname, &indent, stdout);
-				//printf("This type is DICT\n");
-				break;
 			case PLIST_ARRAY:
 				plist_array_print_to_stream(bname, &indent, bundleicons);
 				//printf("This type is ARRAY\n");
 				break;
 			default:
-				//plist_node_print_to_stream(plist, &indent, stream);
 				//DEBUG("None of them");
 				break;
 			}
 	}
 	
+	int i = 0, desired_120p = 0;
+	for (i = 0; i< totalIcons.length; i++)
+	{
+		if (strstr(totalIcons.icon[i], "60x60@2x") || strstr(totalIcons.icon[i], "120"))
+		{
+			desired_120p = 1;
+			break;
+		}
+	}
+	
+	if (desired_120p)
+	{
+		bundleicons = strdup(totalIcons.icon[i]);
+	}
+	else
+	{
+		bundleicons = strdup(totalIcons.icon[--i]);
+	}
 	
 	
 	char appicon[128];
@@ -1094,15 +1218,17 @@ int extract(char * file)
 		//memset(newpng, 0, len+1);
 		pngnormal(bundleicons, zbuf, len);
 		
-		if (strstr(bundleicons, ".PNG") || strstr(bundleicons, ".png"))
+		if (desired_120p)
 		{
-			printf("bundleicons=%s\n", bundleicons);
+			if (strstr(bundleicons, ".PNG") || strstr(bundleicons, ".png"))
+			{
+				printf("CFBundleIcons=%s\n", bundleicons);
+			}
+			else
+			{
+				printf("CFBundleIcons=%s.png\n", bundleicons);
+			}
 		}
-		else
-		{
-			printf("bundleicons=%s.png\n", bundleicons);
-		}
-
 		got_icon = 1;
 	}
 	else {
@@ -1114,7 +1240,7 @@ int extract(char * file)
 	}
 	
 	//=============================Get BundleIcons========================
-	if (!got_icon)
+	if (!got_icon || !desired_120p)
 	{
 		//DEBUG("Got_icon = 0, need find this one\n");
 		/* CFBundlesIcons */
@@ -1135,21 +1261,76 @@ int extract(char * file)
 					//DEBUG("This type is ARRAY\n");
 					break;
 				default:
-					//DEBUG("None of them");
 					break;
 				}
 				//DEBUG("CFBundleIconFiles Start\n");
 			}
 			
-			if (strstr(bundleicons, ".PNG") || strstr(bundleicons, ".png"))
+			int j = 0, desired_120p_j = 0;
+			for (j = 0; j< totalIcons.length; j++)
 			{
-				printf("bundleicons=%s\n", bundleicons);
+				if (strstr(totalIcons.icon[j], "60@2x") || strstr(totalIcons.icon[j], "120"))
+				{
+					desired_120p_j = 1;
+					break;
+				}
+			}
+			
+			//删除图标,如果在这个数组中找到了120x120像素的图片
+			if (bundleicons && desired_120p_j)
+			{
+				//DEBUG("Filename=%s\n", bundleicons);
+				if (_access(bundleicons, 0) == 0)
+				{
+					unlink(bundleicons);
+				}
+				else 
+				{
+					char filename[128];
+					memset(filename, 0, sizeof(filename));
+					sprintf(filename, "%s.png", filename);
+					//DEBUG("Filename=%s\n", filename);
+					if (_access(bundleicons, 0) == 0)
+					{
+						unlink(filename);
+					}
+				}
+				free(bundleicons);
+			}
+			else if(got_icon)
+			{
+				goto NOT_FOUND;
+			}
+					
+			if (desired_120p_j)
+			{
+				bundleicons = strdup(totalIcons.icon[j]);
 			}
 			else
 			{
-				printf("bundleicons=%s.png\n", bundleicons);
+				bundleicons = strdup(totalIcons.icon[--j]);
 			}
-
+			
+			if (strstr(bundleicons, ".PNG") || strstr(bundleicons, ".png"))
+			{
+				printf("CFBundleIcons=%s\n", bundleicons);
+			}
+			else
+			{
+				printf("CFBundleIcons=%s.png\n", bundleicons);
+			}
+		}
+		else
+		{
+NOT_FOUND:
+			if (strstr(bundleicons, ".PNG") || strstr(bundleicons, ".png"))
+			{
+				printf("CFBundleIcons=%s\n", bundleicons);
+			}
+			else
+			{
+				printf("CFBundleIcons=%s.png\n", bundleicons);
+			}
 		}
 		
 		strcat(fulldir, bundleicons);
@@ -1234,10 +1415,33 @@ EXIT:
 		//DEBUG("bundleidentifier=%p\n", bundleidentifier);
 		free(bundleidentifier);
 	}
+	
+	if (bundlename)
+	{
+		//DEBUG("bundlename=%p\n", bundlename);
+		free(bundlename);
+	}
+	if (bundledisplayname)
+	{
+		//DEBUG("bundledisplayname=%p\n", bundledisplayname);
+		free(bundledisplayname);
+	}
+	if (bundledevregion)
+	{
+		//DEBUG("bundledevregion=%p\n", bundledevregion);
+		free(bundledevregion);
+	}
+	if (bundleversion)
+	{
+		//DEBUG("bundleshoartversion=%p\n", bundleversion);
+		free(bundleversion);
+	}
+	if (bundlever)
+	{
+		//DEBUG("bundleversion=%p\n", bundlever);
+		free(bundlever);
+	}
 }
-
-//End of Add.
-
 
 int main(int argc, char **argv)
 {

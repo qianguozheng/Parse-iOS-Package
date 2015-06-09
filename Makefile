@@ -6,3 +6,8 @@ all:$(TARGET).c
 
 clean:
 	rm $(TARGET)
+
+install:
+	mv $(TARGET) ./bin
+uninstall:
+	rm ./bin/$(TARGET)
