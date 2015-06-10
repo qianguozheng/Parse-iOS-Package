@@ -1,13 +1,14 @@
 CC=gcc
 LDFLAGS=-lzip -lz -lplist
 TARGET=extract
+BIN=ipainfo
 all:$(TARGET).c
-	$(CC) -o $(TARGET) $(TARGET).c $(LDFLAGS)
+	$(CC) -o $(BIN) $(TARGET).c $(LDFLAGS)
 
 clean:
-	rm $(TARGET)
+	rm $(BIN)
 
 install:
-	mv $(TARGET) ./bin
+	mv $(BIN) ./bin
 uninstall:
-	rm ./bin/$(TARGET)
+	rm ./bin/$(BIN)
