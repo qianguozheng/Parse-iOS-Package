@@ -99,7 +99,8 @@ char *bundleicons = NULL;
 static const char base64_str[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 static const char base64_pad = '=';
 
-
+char iconName[128];
+char absPath[256];
 static int write_png_data(const char *filename, const char *pngdata, uint32_t size)
 {
 	size_t amount = 0, written = 0;
@@ -654,24 +655,21 @@ int pngnormal(char *filename, char *oldpng, long int size)
 		//break;
 	}
 
+NOT_COMPRESSED:
 	if (!strstr(filename, ".PNG") && !strstr(filename, ".png"))
 	{
 		char filename_png[128];
 		memset(filename_png, 0, sizeof(filename_png));
-
+		
 		sprintf(filename_png, "%s.png", filename);
+        //printf("filename_png=%s\n", filename_png);
 		write_png_data(filename_png, newpng, total_len);
 		return 0;
 	}
-	
+    //printf("filename=%s\n", filename);	
 	write_png_data(filename, newpng, total_len);
 	
 	return 0; 
-	
-NOT_COMPRESSED:
-	write_png_data(filename, oldpng, size);
-	
-	return 0;
 }
 
 
@@ -1023,6 +1021,8 @@ int extract(char * file)
 	char *bundlever = NULL;
 	int got_icon = 0;
 	char fulldir[128];
+    int notfoundicon = 0;
+    int iconSize = 0;
 	
 	memset(pendingIDATChunk, 0, sizeof(pendingIDATChunk));
 	memset(newpng, 0, sizeof(newpng));
@@ -1071,6 +1071,7 @@ int extract(char * file)
 	filename = (char*)malloc(strlen(app_directory_name)+10+1);
 	strcpy(filename, app_directory_name);
 	sprintf(fulldir, "%s", app_directory_name);
+	sprintf(absPath, "%s", app_directory_name);
 	//DEBUG("app_directory_name=%s\n", app_directory_name);
 	
 	//free(app_directory_name);
@@ -1121,23 +1122,23 @@ int extract(char * file)
 	bname = plist_dict_get_item(info, "CFBundleName");
 	if (bname) {
 		plist_get_string_val(bname, &bundlename);
-		char outbuf[512];
-		size_t len=512;
-		memset(outbuf, 0, sizeof(outbuf));
-		//printf("CFBundleName=%s, len=%d\n", bundlename, strlen(bundlename));
-		u2g(bundlename, (size_t)strlen(bundlename), outbuf, len);
-		printf("CFBundleName=%s\n", outbuf);
+		//char outbuf[512];
+		//size_t len=512;
+		//memset(outbuf, 0, sizeof(outbuf));
+		printf("CFBundleName=%s\n", bundlename);
+		//u2g(bundlename, (size_t)strlen(bundlename), outbuf, len);
+		//printf("CFBundleName=%s\n", outbuf);
 	}
 	
 	bname = plist_dict_get_item(info, "CFBundleDisplayName");
 	if (bname) {
 		plist_get_string_val(bname, &bundledisplayname);
-		char outbuf[512];
-		size_t len=512;
-		memset(outbuf, 0, sizeof(outbuf));
-		u2g(bundledisplayname, (size_t)strlen(bundledisplayname), outbuf, len);
-		//printf("CFBundleDisplayName=%s\n", bundledisplayname);
-		printf("CFBundleDisplayName=%s\n", outbuf);
+		//char outbuf[512];
+		//size_t len=512;
+		//memset(outbuf, 0, sizeof(outbuf));
+		//u2g(bundledisplayname, (size_t)strlen(bundledisplayname), outbuf, len);
+		printf("CFBundleDisplayName=%s\n", bundledisplayname);
+		//printf("CFBundleDisplayName=%s\n", outbuf);
 	}
 	
 	bname = plist_dict_get_item(info, "CFBundleDevelopmentRegion");
@@ -1223,10 +1224,12 @@ int extract(char * file)
 			if (strstr(bundleicons, ".PNG") || strstr(bundleicons, ".png"))
 			{
 				printf("CFBundleIcons=%s\n", bundleicons);
+                sprintf(iconName, "%s", bundleicons);
 			}
 			else
 			{
 				printf("CFBundleIcons=%s.png\n", bundleicons);
+                sprintf(iconName, "%s", bundleicons);
 			}
 		}
 		got_icon = 1;
@@ -1314,10 +1317,12 @@ int extract(char * file)
 			if (strstr(bundleicons, ".PNG") || strstr(bundleicons, ".png"))
 			{
 				printf("CFBundleIcons=%s\n", bundleicons);
+                sprintf(iconName, "%s", bundleicons);
 			}
 			else
 			{
 				printf("CFBundleIcons=%s.png\n", bundleicons);
+                sprintf(iconName, "%s", bundleicons);
 			}
 		}
 		else
@@ -1326,10 +1331,12 @@ NOT_FOUND:
 			if (strstr(bundleicons, ".PNG") || strstr(bundleicons, ".png"))
 			{
 				printf("CFBundleIcons=%s\n", bundleicons);
+                sprintf(iconName, "%s", bundleicons);
 			}
 			else
 			{
 				printf("CFBundleIcons=%s.png\n", bundleicons);
+                sprintf(iconName, "%s", bundleicons);
 			}
 		}
 		
@@ -1342,20 +1349,123 @@ NOT_FOUND:
 			//printf("BundleIcons=%s\n", bundleicons);
 			strcat(fulldir, ".png");
 		}
-		
+RETRY:
 		//DEBUG("fulldir = %s\n", fulldir);
+		//printf("fulldir=%s\n", fulldir);
 		if (zip_get_contents(zf, fulldir, 0, &zbuf, &len) == 0){
-			//PNG icon file
-			//printf("%d, Got the icon file###############\n", __LINE__);
-			//write_png_data(bundleicons, &zbuf, len);
-			//newpng = (char *)malloc(len+1);
-			//memset(newpng, 0, len+1);
 			pngnormal(bundleicons, zbuf, len);
+            notfoundicon = 0;
 		}
 		else {
-			//DEBUG( "WARNING: could not locate %s in archive!\n", fulldir);
+            //DEBUG( "%s(%d): WARNING: could not locate %s in archive!\n", __FUNCTION__, __LINE__, fulldir);
+            notfoundicon = 1;
 		}
+        //一些App的Info.plist中并没有60x60的图标，但是存在其倍数级别的，所以这里需要手动修改其名称
+        if (notfoundicon)
+        {
+            if (!strstr(fulldir, "@2x"))
+            {
+                iconSize = 2;
+                //AppIcon60x60 not exist; change to AppIcon60x60@2x.png   
+                memset(fulldir, 0, sizeof(fulldir));
+                sprintf(fulldir, "%s", absPath);
+                
+                if(strstr(iconName, ".png"))
+                {
+                    //snprintf(fulldir+strlen(fulldir),strlen(iconName)-4, "%s", iconName);
+					strncpy(fulldir+strlen(fulldir), iconName, strlen(iconName)-4);
+                    strcat(fulldir, "@2x.png");
+                }
+                else if (strstr(iconName, ".PNG"))
+                {
+                    //snprintf(fulldir+strlen(fulldir),strlen(iconName)-4, "%s", iconName);
+					strncpy(fulldir + strlen(fulldir), iconName, strlen(iconName) - 4);
+                    strcat(fulldir, "@2x.PNG");
+                }
+                else
+                {
+                    sprintf(fulldir+strlen(fulldir), "%s@2x.png", iconName);
+                }
 
+                
+                goto RETRY;
+            }
+            else if (!strstr(fulldir, "@3x"))
+            {
+                iconSize = 3;
+                //AppIcon60x60@2x not exist; change to AppIcon60x60@3x.png   
+                memset(fulldir, 0, sizeof(fulldir));
+                sprintf(fulldir, "%s", absPath);
+                
+                if(strstr(iconName, ".png"))
+                {
+                    //snprintf(fulldir+strlen(fulldir),strlen(iconName)-4, "%s", iconName);
+					strncpy(fulldir + strlen(fulldir), iconName, strlen(iconName) - 4);
+                    strcat(fulldir, "@3x.png");
+                }
+                else if (strstr(iconName, ".PNG"))
+                {
+                    //snprintf(fulldir+strlen(fulldir),strlen(iconName)-4, "%s", iconName);
+					strncpy(fulldir + strlen(fulldir), iconName, strlen(iconName) - 4);
+                    strcat(fulldir, "@3x.PNG");
+                }
+                else
+                {
+                    sprintf(fulldir+strlen(fulldir), "%s@3x.png", iconName);
+                }
+                goto RETRY;
+            }
+        }
+#if 0
+        //不需要修改名字
+        if (2 == iconSize)
+        {
+            if (strstr(iconName, ".png"))
+            {
+                char *iconPtr = iconName;
+                iconPtr = strstr(iconName, ".png");
+                *iconPtr = '\0';
+                printf("CFBundleIcons=%s@2x.png", iconPtr);
+            }
+            else if (strstr(iconName, ".PNG"))
+            {
+                char *iconPtr = iconName;
+                iconPtr = strstr(iconName, ".PNG");
+                *iconPtr = '\0';
+                printf("CFBundleIcons=%s@2x.PNG", iconPtr);
+            }
+            else
+            {
+                printf("CFBundleIcons=%s@2x.png", iconName);
+            }
+        }
+        else if(3 == iconSize)
+        {
+            printf("CFBundleIcons");
+            if (strstr(iconName, ".png"))
+            {
+                char *iconPtr = iconName;
+                iconPtr = strstr(iconName, ".png");
+                *iconPtr = '\0';
+                printf("CFBundleIcons=%s@2x.png", iconPtr);
+            }
+            else if (strstr(iconName, ".PNG"))
+            {
+                char *iconPtr = iconName;
+                iconPtr = strstr(iconName, ".PNG");
+                *iconPtr = '\0';
+                printf("CFBundleIcons=%s@2x.PNG", iconPtr);
+            }
+            else
+            {
+                printf("CFBundleIcons=%s@2x.png", iconName);
+            }
+        }
+        else
+        {
+            printf("CFBundleIcons=%s\n", iconName);
+        }
+#endif
 		if (zbuf) {
 			free(zbuf);
 		}
@@ -1450,7 +1560,10 @@ int main(int argc, char **argv)
 		printf("Usage: ./ios xxxx.ipa\n");
 		return -1;
 	}
-	//printf("argv[1]=%s\n", argv[1]);
+	
+	memset(newpng, 0, sizeof(newpng));
+    memset(iconName, 0, sizeof(iconName));
+    memset(absPath, 0, sizeof(absPath));
 	extract(argv[1]);
 
 	return 0;
