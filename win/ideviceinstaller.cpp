@@ -655,7 +655,6 @@ int pngnormal(char *filename, char *oldpng, long int size)
 		//break;
 	}
 
-NOT_COMPRESSED:
 	if (!strstr(filename, ".PNG") && !strstr(filename, ".png"))
 	{
 		char filename_png[128];
@@ -668,7 +667,20 @@ NOT_COMPRESSED:
 	}
     //printf("filename=%s\n", filename);	
 	write_png_data(filename, newpng, total_len);
+
+NOT_COMPRESSED:
 	
+	if (!strstr(filename, ".PNG") && !strstr(filename, ".png"))
+	{
+		char filename_png[128];
+		memset(filename_png, 0, sizeof(filename_png));
+		
+		sprintf(filename_png, "%s.png", filename);
+        //printf("filename_png=%s\n", filename_png);
+		write_png_data(filename_png, oldpng, size);
+		return 0;
+	}
+	write_png_data(filename, oldpng, size);
 	return 0; 
 }
 
