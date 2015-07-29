@@ -682,7 +682,7 @@ static void plist_array_print_to_stream(plist_t node, int* indent_level, char* s
 		//fprintf(stream, "%*s", *indent_level, "");
 		//fprintf(stream, "%d: ", i);
 		plist_node_item(subnode, indent_level, i);
-		DEBUG("totalIcons=%s\n", totalIcons.icon[i]);
+		//DEBUG("totalIcons=%s\n", totalIcons.icon[i]);
 	}
 	
 }
@@ -946,6 +946,8 @@ int extract(char * file)
 	char fulldir[128];
     int notfoundicon = 0;
     int iconSize = 0;
+    int stop_flag = 0;
+    int checked = 0;
 	
 	memset(pendingIDATChunk, 0, sizeof(pendingIDATChunk));
 	memset(newpng, 0, sizeof(newpng));
@@ -1089,11 +1091,13 @@ int extract(char * file)
 	}
 	
 	int i = 0, desired_120p = 0;
+    int selected_index = -1;//In case the file not exist, we can try to get the last index.
 	for (i = 0; i< totalIcons.length; i++)
 	{
 		if (strstr(totalIcons.icon[i], "60x60@2x") || strstr(totalIcons.icon[i], "120"))
 		{
 			desired_120p = 1;
+            selected_index = i;
 			break;
 		}
 	}
@@ -1186,6 +1190,7 @@ int extract(char * file)
 				if (strstr(totalIcons.icon[j], "60@2x") || strstr(totalIcons.icon[j], "120"))
 				{
 					desired_120p_j = 1;
+					selected_index = j;
 					break;
 				}
 			}
@@ -1268,9 +1273,10 @@ RETRY:
             notfoundicon = 1;
 		}
         //一些App的Info.plist中并没有60x60的图标，但是存在其倍数级别的，所以这里需要手动修改其名称
-        if (notfoundicon)
+        if (notfoundicon && !stop_flag)
         {
-            if (!strstr(fulldir, "@2x"))
+CHECK_LAST:  
+            if (checked == 0)
             {
                 iconSize = 2;
                 //AppIcon60x60 not exist; change to AppIcon60x60@2x.png   
@@ -1291,11 +1297,10 @@ RETRY:
                 {
                     sprintf(fulldir+strlen(fulldir), "%s@2x.png", iconName);
                 }
-
-                
-                goto RETRY;
+                checked = 1;
+                DEBUG("%d: check=1\n",__LINE__);
             }
-            else if (!strstr(fulldir, "@3x"))
+            else if (checked == 1)
             {
                 iconSize = 3;
                 //AppIcon60x60@2x not exist; change to AppIcon60x60@3x.png   
@@ -1316,59 +1321,38 @@ RETRY:
                 {
                     sprintf(fulldir+strlen(fulldir), "%s@3x.png", iconName);
                 }
+                checked = 2; //skip @2x and @3x, got the else 
+                DEBUG("%d: check=2\n",__LINE__);
+            }
+            else if (checked == 2)
+            {
+				DEBUG("%d: check=0, selected_index=%d\n",__LINE__, selected_index);
+				
+                if (selected_index > 0)
+                {
+                    int j = 0;
+                    for (j = 0; j < totalIcons.length; j++)
+                    {
+                        DEBUG("%i: %s", j, totalIcons.icon[j]);                        
+                    }
+                    DEBUG("%d: iconName=%s\n", __LINE__, iconName);
+                    sprintf(iconName, "%s", totalIcons.icon[selected_index-1]);
+                    DEBUG("%d: iconName=%s\n", __LINE__, iconName);
+                    selected_index = -1;
+                    checked = 0; //reset the fulldir;
+                    goto CHECK_LAST;
+                }
+                else
+                {
+                    stop_flag = 1;
+                }
+                checked = 0;
+                DEBUG("%d: check=0\n",__LINE__);
+            }
+            if (stop_flag == 0)        
                 goto RETRY;
-            }
-        }
-#if 0
-        //不需要修改名字
-        if (2 == iconSize)
-        {
-            if (strstr(iconName, ".png"))
-            {
-                char *iconPtr = iconName;
-                iconPtr = strstr(iconName, ".png");
-                *iconPtr = '\0';
-                printf("CFBundleIcons=%s@2x.png", iconPtr);
-            }
-            else if (strstr(iconName, ".PNG"))
-            {
-                char *iconPtr = iconName;
-                iconPtr = strstr(iconName, ".PNG");
-                *iconPtr = '\0';
-                printf("CFBundleIcons=%s@2x.PNG", iconPtr);
-            }
-            else
-            {
-                printf("CFBundleIcons=%s@2x.png", iconName);
-            }
-        }
-        else if(3 == iconSize)
-        {
-            printf("CFBundleIcons");
-            if (strstr(iconName, ".png"))
-            {
-                char *iconPtr = iconName;
-                iconPtr = strstr(iconName, ".png");
-                *iconPtr = '\0';
-                printf("CFBundleIcons=%s@2x.png", iconPtr);
-            }
-            else if (strstr(iconName, ".PNG"))
-            {
-                char *iconPtr = iconName;
-                iconPtr = strstr(iconName, ".PNG");
-                *iconPtr = '\0';
-                printf("CFBundleIcons=%s@2x.PNG", iconPtr);
-            }
-            else
-            {
-                printf("CFBundleIcons=%s@2x.png", iconName);
-            }
-        }
-        else
-        {
-            printf("CFBundleIcons=%s\n", iconName);
-        }
-#endif
+		}
+		
 		if (zbuf) {
 			free(zbuf);
 		}
