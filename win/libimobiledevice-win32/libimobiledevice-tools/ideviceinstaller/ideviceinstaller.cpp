@@ -1431,22 +1431,22 @@ CHECK_LAST:
                     sprintf(fulldir+strlen(fulldir), "%s@3x.png", iconName);
                 }
                 checked = 2; //skip @2x and @3x, got the else 
-                DEBUG("%d: check=2\n",__LINE__);
+                //DEBUG("%d: check=2\n",__LINE__);
             }
             else if (checked == 2)
             {
-				DEBUG("%d: check=0, selected_index=%d\n",__LINE__, selected_index);
+				//DEBUG("%d: check=0, selected_index=%d\n",__LINE__, selected_index);
 				
                 if (selected_index > 0)
                 {
-                    int j = 0;
-                    for (j = 0; j < totalIcons.length; j++)
-                    {
-                        DEBUG("%i: %s", j, totalIcons.icon[j]);                        
-                    }
-                    DEBUG("%d: iconName=%s\n", __LINE__, iconName);
+                    //int j = 0;
+                    //for (j = 0; j < totalIcons.length; j++)
+                    //{
+                        //DEBUG("%i: %s", j, totalIcons.icon[j]);                        
+                    //}
+                    //DEBUG("%d: iconName=%s\n", __LINE__, iconName);
                     sprintf(iconName, "%s", totalIcons.icon[selected_index-1]);
-                    DEBUG("%d: iconName=%s\n", __LINE__, iconName);
+                    //DEBUG("%d: iconName=%s\n", __LINE__, iconName);
                     selected_index = -1;
                     checked = 0; //reset the fulldir;
                     goto CHECK_LAST;
@@ -1456,7 +1456,7 @@ CHECK_LAST:
                     stop_flag = 1;
                 }
                 checked = 0;
-                DEBUG("%d: check=0\n",__LINE__);
+                //DEBUG("%d: check=0\n",__LINE__);
             }
             if (stop_flag == 0)        
                 goto RETRY;

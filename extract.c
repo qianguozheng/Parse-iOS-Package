@@ -1330,11 +1330,11 @@ CHECK_LAST:
 				
                 if (selected_index > 0)
                 {
-                    int j = 0;
-                    for (j = 0; j < totalIcons.length; j++)
-                    {
-                        DEBUG("%i: %s", j, totalIcons.icon[j]);                        
-                    }
+                    //int j = 0;
+                    //for (j = 0; j < totalIcons.length; j++)
+                    //{
+                    //    DEBUG("%i: %s", j, totalIcons.icon[j]);                        
+                    //}
                     DEBUG("%d: iconName=%s\n", __LINE__, iconName);
                     sprintf(iconName, "%s", totalIcons.icon[selected_index-1]);
                     DEBUG("%d: iconName=%s\n", __LINE__, iconName);
