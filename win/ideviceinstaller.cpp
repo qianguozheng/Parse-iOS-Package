@@ -668,6 +668,8 @@ int pngnormal(char *filename, char *oldpng, long int size)
     //printf("filename=%s\n", filename);	
 	write_png_data(filename, newpng, total_len);
 
+    return 0;
+
 NOT_COMPRESSED:
 	
 	if (!strstr(filename, ".PNG") && !strstr(filename, ".png"))
@@ -1202,6 +1204,10 @@ int extract(char * file)
 			break;
 		}
 	}
+    if (selected_index < 0 )
+    {
+        selected_index = totalIcons.length - 1;
+    }
 	
 	if (desired_120p)
 	{
@@ -1295,6 +1301,10 @@ int extract(char * file)
 					break;
 				}
 			}
+            if (selected_index < 0 )
+            {
+                selected_index = totalIcons.length - 1;
+            }
 			
 			//删除图标,如果在这个数组中找到了120x120像素的图片
 			if (bundleicons && desired_120p_j)
@@ -1447,7 +1457,8 @@ CHECK_LAST:
                     //DEBUG("%d: iconName=%s\n", __LINE__, iconName);
                     sprintf(iconName, "%s", totalIcons.icon[selected_index-1]);
                     //DEBUG("%d: iconName=%s\n", __LINE__, iconName);
-                    selected_index = -1;
+                    //selected_index = -1;
+                    selected_index --;
                     checked = 0; //reset the fulldir;
                     goto CHECK_LAST;
                 }
