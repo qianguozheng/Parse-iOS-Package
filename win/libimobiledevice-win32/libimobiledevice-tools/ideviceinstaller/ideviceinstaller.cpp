@@ -169,9 +169,9 @@ int u2g(char *inbuf, size_t inlen, char *outbuf, size_t outlen)
 	return written;
 }*/
 //png normalize function
-char pendingIDATChunk[50*1024];
+char pendingIDATChunk[200*1024];
 int pendingLength = 0;
-char newpng[50*1024];
+char newpng[200*1024];
 //char *oldpng = NULL;
 #include <zlib.h>
 

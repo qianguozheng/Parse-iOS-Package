@@ -37,7 +37,7 @@ static int write_png_data(const char *filename, const char *pngdata, uint32_t si
 {
 	size_t amount = 0, written = 0;
 	FILE *fp = fopen(filename, "wb+");
-	
+
 	while(written < size)
 	{
 		amount = fwrite((pngdata+written), 1, size-written, fp);
@@ -49,10 +49,10 @@ static int write_png_data(const char *filename, const char *pngdata, uint32_t si
 		}
 		//printf("amount=%ld\n", amount);
 	}
-	
+
 	fflush(fp);
 	fclose(fp);
-	
+
 	return written;
 }
 
@@ -60,7 +60,7 @@ static int write_png_data(const char *filename, const char *pngdata, uint32_t si
 {
 	size_t amount = 0, written = 0;
 	FILE *fp = fopen(filename, "wb+");
-	
+
 	while(written < size)
 	{
 		amount = fwrite(*(pngdata+written), 1, size-written, fp);
@@ -72,16 +72,16 @@ static int write_png_data(const char *filename, const char *pngdata, uint32_t si
 		}
 		//printf("amount=%ld\n", amount);
 	}
-	
+
 	fflush(fp);
 	fclose(fp);
-	
+
 	return written;
 }*/
 //png normalize function
-char pendingIDATChunk[50*1024];
+char pendingIDATChunk[200*1024];
 int pendingLength = 0;
-char newpng[50*1024];
+char newpng[200*1024];
 //char *oldpng = NULL;
 #include <zlib.h>
 #include <arpa/inet.h>
@@ -303,14 +303,14 @@ char *decompress(char *compressed, int wsize, int input_len, int bufsize)
 int pngnormal(char *filename, char *oldpng, long int size)
 {
 	DEBUG("OldPNG size: %ldKB\n", size/1024);
-	
+
 	int i = 0;
 	char *poldpng = oldpng;
 	char *pnewpng = newpng;
 	int total_len = 0;
 	int old_len = size;
 	int new_len = 0;
-	
+
 	int chunkLength = 0;
 	char chunkType[4] = {0};
 	char *chunkData = NULL;
@@ -320,7 +320,7 @@ int pngnormal(char *filename, char *oldpng, long int size)
 	int width = 0;
 	int height = 0;
 	int bufsize = 0;
-	
+
 	/*DEBUG("PNG[0]=%02x, PNG[1]=%02x, PNG[2]=%02x, PNG[3]=%02x\n"
 			"PNG[4]=%02x, PNG[5]=%02x, PNG[6]=%02x, PNG[7]=%02x\n",
 			poldpng[0], poldpng[1], poldpng[2], poldpng[3],
@@ -334,10 +334,10 @@ int pngnormal(char *filename, char *oldpng, long int size)
 		}
 	}
 	DEBUG("Valid PNG File\n");
-	
+
 	//Copy first 8 bytes to Newpng;
 	memcpy(pnewpng, poldpng, 8);
-	
+
 	DEBUG("PNG[0]=%02x, PNG[1]=%02x, PNG[2]=%02x, PNG[3]=%02x\n"
 			"PNG[4]=%02x, PNG[5]=%02x, PNG[6]=%02x, PNG[7]=%02x\n",
 			pnewpng[0], pnewpng[1], pnewpng[2], pnewpng[3],
@@ -348,41 +348,41 @@ int pngnormal(char *filename, char *oldpng, long int size)
 	total_len = new_len;
 	while(new_len < old_len)
 	{
-		
-		
+
+
 		//Get chunkLength
 		memcpy(&chunkLength, poldpng, 4);
 		chunkLength = ntohl(chunkLength);
 		DEBUG("ChunkLength=%d\n", chunkLength);
-		
+
 		//Get chunkType
 		memcpy(chunkType, poldpng+4, 4);
-		
+
 		DEBUG("chunkType: %02x, %02x, %02x, %02x,\n "
-				"%c%c%c%c\n", 
-			chunkType[0], chunkType[1], chunkType[2], chunkType[3], 
+				"%c%c%c%c\n",
+			chunkType[0], chunkType[1], chunkType[2], chunkType[3],
 			chunkType[0], chunkType[1], chunkType[2], chunkType[3]);
-			
+
 		//Get chunkData
 		if (chunkLength > 0)
 		{
 			chunkData = (char *)malloc(chunkLength+1);
-			memcpy(chunkData, poldpng+8, chunkLength);	
+			memcpy(chunkData, poldpng+8, chunkLength);
 		}
-		
+
 		//Get chunkCRC
 		memcpy(&chunkCRC, poldpng+chunkLength+8, 4);
 		chunkCRC = ntohl(chunkCRC);
-		
+
 		//Copy all the old data from oldpng to newpng
 		//memcpy(pnewpng, poldpng, chunkLength+12);
 		new_len += chunkLength + 12;
 		poldpng += chunkLength + 12;
-		
+
 		DEBUG("new_len=%d\n", new_len);
 		//pnewpng += new_len;
-		
-		
+
+
 		//Parsing the header chunk [IHDR]
 		if (chunkType[0] == 'I' && chunkType[1] == 'H' &&
 			chunkType[2] == 'D' && chunkType[3] == 'R')
@@ -392,31 +392,35 @@ int pngnormal(char *filename, char *oldpng, long int size)
 			width = ntohl(width);
 			memcpy(&height, chunkData+4, 4);
 			height = ntohl(height);
-			
+
 			DEBUG("Height x Width: %dx%d\n", height, width);
 		}
-		
+
 		//Parsing the image chunk [IDAT]
 		if (chunkType[0] == 'I' && chunkType[1] == 'D' &&
 			chunkType[2] == 'A' && chunkType[3] == 'T')
 		{
 			DEBUG("This is IDAT chunk\n");
 			bufsize = width * height * 4 + height;
-			char *decompressed_data = (char *)malloc(bufsize+1), 
+			DEBUG("bufsize=%d\n", bufsize);
+			char *decompressed_data = (char *)malloc(bufsize+1),
 				 *dtmp = NULL;
 			memset(decompressed_data, 0, bufsize);
 			
-			
+			DEBUG("global_decompress_er=%d\n", global_decompress_err);
+
 			if (-5 == global_decompress_err)
 			{
 				//one png file may have multiple IDAT chunks.
+				DEBUG("Got here 1\n");
 				memcpy(pendingIDATChunk+pendingLength, chunkData, chunkLength);
+				DEBUG("Got here 2\n");
 				pendingLength += chunkLength;
 				//write_png_data("chunkData2", chunkData, chunkLength);
 				//write_png_data("pendingIDATChunk", pendingIDATChunk, pendingLength);
 				dtmp = decompress(pendingIDATChunk, -8, pendingLength, bufsize);
 			}
-			else 
+			else
 			{
 				//write_png_data("chunkData", chunkData, chunkLength);
 				dtmp = decompress(chunkData, -8, chunkLength, bufsize);
@@ -446,14 +450,14 @@ int pngnormal(char *filename, char *oldpng, long int size)
 				pendingLength = 0;
 			}
 			memcpy(decompressed_data, dtmp, bufsize);
-			
-			
+
+
 			//Swapping red & blue bytes for each pixel
 			newdata = (char *)malloc(bufsize+1);
 			int x, y, i, len_newdata = 0;
-			
+
 			memset(newdata, 0, bufsize);
-			
+
 			for (y=0; y< height; y++)
 			{
 				i = len_newdata;
@@ -470,9 +474,9 @@ int pngnormal(char *filename, char *oldpng, long int size)
 					len_newdata++;
 					memcpy(newdata+len_newdata, decompressed_data+i+3, 1);
 					len_newdata++;
-				}						
+				}
 			}
-			
+
 			//Compressing the image chunk
 			if (chunkData)
 			{
@@ -484,19 +488,19 @@ int pngnormal(char *filename, char *oldpng, long int size)
 				free(decompressed_data);
 				decompressed_data = NULL;
 			}
-			
-			
+
+
 			chunkData = (char *) malloc(bufsize+1);
 			memset(chunkData, 0, bufsize);
 			memcpy(chunkData, newdata, bufsize);
-			
-			
+
+
 			char *tmp = NULL;
 			int output_len = -1;
-			
+
 			DEBUG("bufsize=%d\n", bufsize);
 			tmp = compress_own(newdata, &output_len, bufsize);
-			
+
 			compressed_data = (char *)malloc(output_len+1);
 			memset(compressed_data, 0, output_len+1);
 			/*char buf[50*1024];
@@ -508,40 +512,40 @@ int pngnormal(char *filename, char *oldpng, long int size)
 			compressed_data = (char *)malloc(output_len+1);
 			memset(compressed_data, 0, output_len+1);
 			memcpy(compressed_data, tmp, output_len);
-			
+
 			memset(chunkData, 0, chunkLength);
 			memcpy(chunkData, compressed_data, output_len);
 			chunkLength = output_len;
 			chunkCRC = crc32(0, chunkType, 4);
 			chunkCRC = crc32(chunkCRC, compressed_data, output_len);
 			chunkCRC = (chunkCRC + 0x100000000) % 0x100000000;
-			
+
 			DEBUG("output_len=%d\n", output_len);
 		}
-			
+
 		//Removing CgBI chunk [CgBI]
 		if (chunkType[0] != 'C' || chunkType[1] != 'g' ||
 			chunkType[2] != 'B' || chunkType[3] != 'I')
 		{
-			
+
 			DEBUG("This NOT CgBI chunk\n");
 			int tmp;
 			tmp = htonl(chunkLength);
 			memcpy(pnewpng, &tmp, 4);
-			
+
 			memcpy(pnewpng+4, chunkType, 4);
-			
+
 			if (chunkLength > 0)
 			{
 				memcpy(pnewpng+8, chunkData, chunkLength);
 			}
-			
+
 			tmp = htonl(chunkCRC);
 			memcpy(pnewpng+chunkLength+8, &tmp, 4);
-			
+
 			pnewpng += chunkLength + 12;
 			total_len += chunkLength + 12;
-			
+
 			DEBUG("total_len=%d\n", total_len);
 			//if (chunkData)
 				//free(chunkData);
@@ -571,31 +575,31 @@ int pngnormal(char *filename, char *oldpng, long int size)
 	{
 		char filename_png[128];
 		memset(filename_png, 0, sizeof(filename_png));
-		
+
 		sprintf(filename_png, "%s.png", filename);
         //printf("filename_png=%s\n", filename_png);
 		write_png_data(filename_png, newpng, total_len);
 		return 0;
 	}
-    //printf("filename=%s\n", filename);	
+    //printf("filename=%s\n", filename);
 	write_png_data(filename, newpng, total_len);
 
     return 0;
 
 NOT_COMPRESSED:
-	
+
 	if (!strstr(filename, ".PNG") && !strstr(filename, ".png"))
 	{
 		char filename_png[128];
 		memset(filename_png, 0, sizeof(filename_png));
-		
+
 		sprintf(filename_png, "%s.png", filename);
         //printf("filename_png=%s\n", filename_png);
 		write_png_data(filename_png, oldpng, size);
 		return 0;
 	}
 	write_png_data(filename, oldpng, size);
-	return 0; 
+	return 0;
 }
 
 
@@ -662,7 +666,7 @@ static void plist_node_item(plist_t node, int* indent_level, int i)
 
 	case PLIST_STRING:
 		plist_get_string_val(node, &s);
-		
+
 		sprintf(totalIcons.icon[i], "%s", s);
 		DEBUG("totalIcons=%s\n", totalIcons.icon[i]);
 		free(s);
@@ -686,7 +690,7 @@ static void plist_array_print_to_stream(plist_t node, int* indent_level, char* s
 		plist_node_item(subnode, indent_level, i);
 		//DEBUG("totalIcons=%s\n", totalIcons.icon[i]);
 	}
-	
+
 }
 
 static void plist_dict_print_to_stream(plist_t node, int* indent_level, FILE* stream)
@@ -748,7 +752,7 @@ static void plist_node_print_to_stream(plist_t node, int* indent_level, char *st
 
 	case PLIST_STRING:
 		plist_get_string_val(node, &s);
-		
+
 		//sprintf(totalIcons.icon[i], "%s", s);
 		//printf("totalIcons=%s\n", totalIcons.icon[i]);
 		//free(s);
@@ -934,7 +938,7 @@ int extract(char * file)
 {
 	int errp = 0;
 	struct zip_file *zf= NULL;
-	
+
 	plist_t meta = NULL;
 	//plist_t info = NULL;
 	char *bundleexecutable = NULL;
@@ -950,11 +954,11 @@ int extract(char * file)
     int iconSize = 0;
     int stop_flag = 0;
     int checked = 0;
-	
+
 	memset(pendingIDATChunk, 0, sizeof(pendingIDATChunk));
 	memset(newpng, 0, sizeof(newpng));
 	memset(fulldir, 0, sizeof fulldir);
-	
+
 	zf = zip_open(file, 0, &errp);
 	if (!zf){
 		DEBUG( "open zip file failed, errp=%d\n", errp);
@@ -1000,13 +1004,13 @@ int extract(char * file)
 	sprintf(fulldir, "%s", app_directory_name);
     sprintf(absPath, "%s", app_directory_name);
 	DEBUG("app_directory_name=%s\n", app_directory_name);
-	
+
 	//free(app_directory_name);
 	app_directory_name = NULL;
 	strcat(filename, "Info.plist");
-	
+
 	DEBUG("filename=%s\n", filename);
-	
+
 	if (zip_get_contents(zf, filename, 0, &zbuf, &len) < 0) {
 		DEBUG( "WARNING: could not locate %s in archive!\n", filename);
 		free(filename);
@@ -1016,7 +1020,7 @@ int extract(char * file)
 		return -1;
 	}
 	free(filename);
-	
+
 	if (memcmp(zbuf, "bplist00", 8) == 0) {
 		plist_from_bin(zbuf, len, &info);
 	} else {
@@ -1031,56 +1035,56 @@ int extract(char * file)
 		zf = NULL;
 		return -2;
 	}
-	
+
 	/* App Name */
 	plist_t bname = plist_dict_get_item(info, "CFBundleExecutable");
 	if (bname) {
 		plist_get_string_val(bname, &bundleexecutable);
 		DEBUG("CFBundleExecutable=%s\n", bundleexecutable);
 	}
-	
+
 	/* App BundleIdentifier */
 	bname = plist_dict_get_item(info, "CFBundleIdentifier");
 	if (bname) {
 		plist_get_string_val(bname, &bundleidentifier);
 		printf("CFBundleIdentifier=%s\n", bundleidentifier);
 	}
-	
+
 	bname = plist_dict_get_item(info, "CFBundleName");
 	if (bname) {
 		plist_get_string_val(bname, &bundlename);
 		printf("CFBundleName=%s\n", bundlename);
 	}
-	
+
 	bname = plist_dict_get_item(info, "CFBundleDisplayName");
 	if (bname) {
 		plist_get_string_val(bname, &bundledisplayname);
 		printf("CFBundleDisplayName=%s\n", bundledisplayname);
 	}
-	
+
 	bname = plist_dict_get_item(info, "CFBundleDevelopmentRegion");
 	if (bname) {
 		plist_get_string_val(bname, &bundledevregion);
 		printf("CFBundleDevelopmentRegion=%s\n", bundledevregion);
 	}
-	
+
 	bname = plist_dict_get_item(info, "CFBundleShortVersionString");
 	if (bname) {
 		plist_get_string_val(bname, &bundleversion);
 		printf("CFBundleShortVersionString=%s\n", bundleversion);
 	}
-	
+
 	bname = plist_dict_get_item(info, "CFBundleVersion");
 	if (bname) {
 		plist_get_string_val(bname, &bundlever);
 		printf("CFBundleVersion=%s\n", bundlever);
 	}
-	
+
 	/* App Icons CFBundleIconFiles */
-	
+
 	//Some apps only have CFBundleIconFiles as [dict], while others have both but may only
 	//one have real icon exist, so we need to distinguish them.
-	
+
 	bname = plist_dict_get_item(info, "CFBundleIconFiles"); //array
 	if (bname){
 		switch (plist_get_node_type(bname)) {
@@ -1091,7 +1095,7 @@ int extract(char * file)
 				DEBUG("None of them");
 			}
 	}
-	
+
 	int i = 0, desired_120p = 0;
     int selected_index = -1;//In case the file not exist, we can try to get the last index.
 	for (i = 0; i< totalIcons.length; i++)
@@ -1107,7 +1111,7 @@ int extract(char * file)
     {
         selected_index = totalIcons.length - 1;
     }
-	
+
 	if (desired_120p)
 	{
 		bundleicons = strdup(totalIcons.icon[i]);
@@ -1116,30 +1120,30 @@ int extract(char * file)
 	{
 		bundleicons = strdup(totalIcons.icon[--i]);
 	}
-	
-	
+
+
 	char appicon[128];
 	memset(appicon, 0, sizeof(appicon));
 	snprintf(appicon, sizeof(appicon)-1, "%s%s", fulldir, bundleicons);
-	if (bundleicons && (NULL == strstr(bundleicons, ".png") && 
+	if (bundleicons && (NULL == strstr(bundleicons, ".png") &&
 		NULL == strstr(bundleicons, ".PNG")))
 	{
 		strcat(appicon, ".png");
 	}
-	
-	
-	
+
+
+
     DEBUG("%d: appicon = %s\n", __LINE__, appicon);
-	
+
 	if (zip_get_contents(zf, appicon, 0, &zbuf, &len) == 0){
 		//PNG icon file
 		//printf("%d, Got the icon file###############\n", __LINE__);
-		//write_png_data(bundleicons, &zbuf, len); 
-		
+		//write_png_data(bundleicons, &zbuf, len);
+
 		//newpng = (char *)malloc(len+1);
 		//memset(newpng, 0, len+1);
 		pngnormal(bundleicons, zbuf, len);
-		
+
 		if (desired_120p)
 		{
 			if (strstr(bundleicons, ".PNG") || strstr(bundleicons, ".png"))
@@ -1162,7 +1166,7 @@ int extract(char * file)
 	if (zbuf) {
 		free(zbuf);
 	}
-	
+
 	//=============================Get BundleIcons========================
 	if (!got_icon || !desired_120p)
 	{
@@ -1189,7 +1193,7 @@ int extract(char * file)
 				}
 				DEBUG("CFBundleIconFiles Start\n");
 			}
-			
+
 			int j = 0, desired_120p_j = 0;
 			for (j = 0; j< totalIcons.length; j++)
 			{
@@ -1204,7 +1208,7 @@ int extract(char * file)
             {
                 selected_index = totalIcons.length - 1;
             }
-			
+
 			//删除图标,如果在这个数组中找到了120x120像素的图片
 			if (bundleicons && desired_120p_j)
 			{
@@ -1213,7 +1217,7 @@ int extract(char * file)
 				{
 					unlink(bundleicons);
 				}
-				else 
+				else
 				{
 					char filename[128];
 					memset(filename, 0, sizeof(filename));
@@ -1230,7 +1234,7 @@ int extract(char * file)
 			{
 				goto NOT_FOUND;
 			}
-					
+
 			if (desired_120p_j)
 			{
 				bundleicons = strdup(totalIcons.icon[j]);
@@ -1239,7 +1243,7 @@ int extract(char * file)
 			{
 				bundleicons = strdup(totalIcons.icon[--j]);
 			}
-			
+
 			if (strstr(bundleicons, ".PNG") || strstr(bundleicons, ".png"))
 			{
 				printf("CFBundleIcons=%s\n", bundleicons);
@@ -1265,9 +1269,9 @@ NOT_FOUND:
                 sprintf(iconName, "%s", bundleicons);
 			}
 		}
-		
+
 		strcat(fulldir, bundleicons);
-		if (bundleicons && (NULL == strstr(bundleicons, ".png") && 
+		if (bundleicons && (NULL == strstr(bundleicons, ".png") &&
 			NULL == strstr(bundleicons, ".PNG")))
 		{
 			strcat(fulldir, ".png");
@@ -1285,14 +1289,14 @@ RETRY:
         //一些App的Info.plist中并没有60x60的图标，但是存在其倍数级别的，所以这里需要手动修改其名称
         if (notfoundicon && !stop_flag)
         {
-CHECK_LAST:  
+CHECK_LAST:
             if (checked == 0)
             {
                 iconSize = 2;
-                //AppIcon60x60 not exist; change to AppIcon60x60@2x.png   
+                //AppIcon60x60 not exist; change to AppIcon60x60@2x.png
                 memset(fulldir, 0, sizeof(fulldir));
                 sprintf(fulldir, "%s", absPath);
-                
+
                 if(strstr(iconName, ".png"))
                 {
                     snprintf(fulldir+strlen(fulldir),strlen(iconName)-4, "%s", iconName);
@@ -1313,10 +1317,10 @@ CHECK_LAST:
             else if (checked == 1)
             {
                 iconSize = 3;
-                //AppIcon60x60@2x not exist; change to AppIcon60x60@3x.png   
+                //AppIcon60x60@2x not exist; change to AppIcon60x60@3x.png
                 memset(fulldir, 0, sizeof(fulldir));
                 sprintf(fulldir, "%s", absPath);
-                
+
                 if(strstr(iconName, ".png"))
                 {
                     snprintf(fulldir+strlen(fulldir),strlen(iconName)-4, "%s", iconName);
@@ -1331,13 +1335,13 @@ CHECK_LAST:
                 {
                     sprintf(fulldir+strlen(fulldir), "%s@3x.png", iconName);
                 }
-                checked = 2; //skip @2x and @3x, got the else 
+                checked = 2; //skip @2x and @3x, got the else
                 DEBUG("%d: check=2\n",__LINE__);
             }
             else if (checked == 2)
             {
 				DEBUG("%d: check=0, selected_index=%d\n",__LINE__, selected_index);
-				
+
                 if (selected_index > 0)
                 {
                     DEBUG("%d: iconName=%s\n", __LINE__, iconName);
@@ -1355,10 +1359,10 @@ CHECK_LAST:
                 checked = 0;
                 DEBUG("%d: check=0\n",__LINE__);
             }
-            if (stop_flag == 0)        
+            if (stop_flag == 0)
                 goto RETRY;
 		}
-		
+
 		if (zbuf) {
 			free(zbuf);
 		}
@@ -1412,7 +1416,7 @@ EXIT:
 		DEBUG("bundleidentifier=%p\n", bundleidentifier);
 		free(bundleidentifier);
 	}
-	
+
 	if (bundlename)
 	{
 		DEBUG("bundlename=%p\n", bundlename);
@@ -1447,7 +1451,7 @@ int main(int argc, char *argv[])
 		printf("Usage: ./extract xxxx.ipa\n");
 		return -1;
 	}
-	
+
 	memset(newpng, 0, sizeof(newpng));
     memset(iconName, 0, sizeof(iconName));
     memset(absPath, 0, sizeof(absPath));
