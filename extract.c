@@ -79,9 +79,11 @@ static int write_png_data(const char *filename, const char *pngdata, uint32_t si
 	return written;
 }*/
 //png normalize function
-char pendingIDATChunk[200*1024];
+//char pendingIDATChunk[200*1024];
+char *pendingIDATChunk = NULL;
 int pendingLength = 0;
-char newpng[200*1024];
+char *newpng = NULL;
+//char newpng[200*1024];
 //char *oldpng = NULL;
 #include <zlib.h>
 #include <arpa/inet.h>
@@ -306,6 +308,9 @@ int pngnormal(char *filename, char *oldpng, long int size)
 
 	int i = 0;
 	char *poldpng = oldpng;
+	//char *pnewpng = newpng;
+	//char *poldpng = malloc(size+1);
+	newpng = malloc(size*2+1);
 	char *pnewpng = newpng;
 	int total_len = 0;
 	int old_len = size;
@@ -320,6 +325,11 @@ int pngnormal(char *filename, char *oldpng, long int size)
 	int width = 0;
 	int height = 0;
 	int bufsize = 0;
+	
+	//memset(poldpng , 0, size+1);
+	pendingIDATChunk = malloc(size*2 + 1);
+	memset(pendingIDATChunk, 0, size*2+1);
+	memset(pnewpng, 0, size*2+1);
 
 	/*DEBUG("PNG[0]=%02x, PNG[1]=%02x, PNG[2]=%02x, PNG[3]=%02x\n"
 			"PNG[4]=%02x, PNG[5]=%02x, PNG[6]=%02x, PNG[7]=%02x\n",
@@ -955,8 +965,8 @@ int extract(char * file)
     int stop_flag = 0;
     int checked = 0;
 
-	memset(pendingIDATChunk, 0, sizeof(pendingIDATChunk));
-	memset(newpng, 0, sizeof(newpng));
+	//memset(pendingIDATChunk, 0, sizeof(pendingIDATChunk));
+	//memset(newpng, 0, sizeof(newpng));
 	memset(fulldir, 0, sizeof fulldir);
 
 	zf = zip_open(file, 0, &errp);
@@ -1452,7 +1462,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	memset(newpng, 0, sizeof(newpng));
+	//memset(newpng, 0, sizeof(newpng));
     memset(iconName, 0, sizeof(iconName));
     memset(absPath, 0, sizeof(absPath));
 	extract(argv[1]);
