@@ -176,7 +176,7 @@ char *compress_own(char *data, int *output_len, int input_len)
         //zlib_error(zst, err, "while finishing compression");
 
  error:
-    free(output);
+    //free(output);
 
     return NULL;
 }
@@ -293,10 +293,10 @@ char *decompress(char *compressed, int wsize, int input_len, int bufsize)
 
  error:
     //Py_XDECREF(result_str);
-    if (result_str)
+    /*if (result_str)
     {
 		free(result_str);
-	}
+	}*/
 	global_decompress_err = err;
     return NULL;
 }
@@ -325,7 +325,7 @@ int pngnormal(char *filename, char *oldpng, long int size)
 	int width = 0;
 	int height = 0;
 	int bufsize = 0;
-	
+
 	//memset(poldpng , 0, size+1);
 	pendingIDATChunk = malloc(size*2 + 1);
 	memset(pendingIDATChunk, 0, size*2+1);
@@ -416,7 +416,7 @@ int pngnormal(char *filename, char *oldpng, long int size)
 			char *decompressed_data = (char *)malloc(bufsize+1),
 				 *dtmp = NULL;
 			memset(decompressed_data, 0, bufsize);
-			
+
 			DEBUG("global_decompress_er=%d\n", global_decompress_err);
 
 			if (-5 == global_decompress_err)

@@ -3,7 +3,7 @@ LDFLAGS=-lzip -lz -lplist
 TARGET=extract
 BIN=ipainfo
 all:$(TARGET).c
-	$(CC) -o $(BIN) $(TARGET).c $(LDFLAGS)
+	$(CC) -g -o $(BIN) $(TARGET).c $(LDFLAGS)
 
 clean:
 	rm $(BIN)

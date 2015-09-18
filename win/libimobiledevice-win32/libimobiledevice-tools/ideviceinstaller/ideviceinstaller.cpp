@@ -48,7 +48,10 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <io.h>
-#include "iconv.h"
+//#include "iconv.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 
 #ifdef WIN32
@@ -101,7 +104,8 @@ static const char base64_pad = '=';
 
 char iconName[128];
 char absPath[256];
-static int write_png_data(const char *filename, const char *pngdata, uint32_t size)
+int pngerror = 0;
+static int write_png_data(const char *filename, const char *pngdata, long int size)
 {
 	size_t amount = 0, written = 0;
 	FILE *fp = fopen(filename, "wb+");
@@ -112,21 +116,50 @@ static int write_png_data(const char *filename, const char *pngdata, uint32_t si
 		written += amount;
 		if (written == size)
 		{
-			//DEBUG("written = size\n");
 			break;
 		}
-		//printf("amount=%ld\n", amount);
 	}
-	
+	//printf("write_png_data\n");
 	fflush(fp);
 	fclose(fp);
 	
 	return written;
 }
+static int write_png_data_raw(const char *filename, const char *pngdata, long int size)
+{
+	size_t amount = 0, written = 0;
+	int fd = open(filename, O_WRONLY|O_CREAT);
+
+	printf("size=%ld\n", size);
+	while (written < size)
+	{
+		amount = write(fd, pngdata+amount, 10);
+		printf("amount=%ld, size=%ld\n", amount, size);
+		written += amount;
+		if (written == size)
+		{
+			printf("written = size\n");
+			break;
+		}
+		if (amount < 10)
+		{
+			break;
+		}
+		printf("amount=%ld\n", amount);
+	}
+	printf("out of while\n");
+	//fflush(fp);
+	printf("fflush down\n");
+	//fclose(fp);
+	close(fd);
+	printf("close\n");
+	return written;
+}
+
 
 /* convert UTF-8 to GB2312 */
 
-int code_convert( char *from_charset, char *to_charset, const char *inbuf, size_t inlen, char *outbuf, size_t outlen)
+/*int code_convert( char *from_charset, char *to_charset, const char *inbuf, size_t inlen, char *outbuf, size_t outlen)
 {
 	iconv_t cd;
 	int rc;
@@ -144,7 +177,7 @@ int code_convert( char *from_charset, char *to_charset, const char *inbuf, size_
 int u2g(char *inbuf, size_t inlen, char *outbuf, size_t outlen)
 {
 	return code_convert("utf-8", "gb2312", inbuf, inlen, outbuf, outlen);
-}
+}*/
 
 /*static int write_png_data(const char *filename, const char **pngdata, uint32_t size)
 {
@@ -264,8 +297,8 @@ char *compress_own(char *data, int *output_len, int input_len)
         //zlib_error(zst, err, "while finishing compression");
 
  error:
-    free(output);
-
+    //free(output);
+	pngerror = 1;
     return NULL;
 }
 
@@ -381,11 +414,13 @@ char *decompress(char *compressed, int wsize, int input_len, int bufsize)
 
  error:
     //Py_XDECREF(result_str);
-    if (result_str)
+    /*if (result_str)
     {
 		free(result_str);
-	}
+	}*/
+	//printf("Error happen\n");
 	global_decompress_err = err;
+	pngerror = 2;
     return NULL;
 }
 
@@ -520,13 +555,18 @@ int pngnormal(char *filename, char *oldpng, long int size)
 				//DEBUG("Cannot decompress data, error=%d\n", global_decompress_err);
 				if (-3 == global_decompress_err)
 				{//image data not compressed.
+					//printf("Got here global_decompress_err=%d\n", global_decompress_err);
+					if (pngerror)
+					{
+						//return -1;
+					}
 					goto NOT_COMPRESSED;
 				}
 				else if (-5 == global_decompress_err)
 				{
 					memcpy(pendingIDATChunk+pendingLength, chunkData, chunkLength);
 					pendingLength += chunkLength;
-					//DEBUG("pendingLength=%d\n", pendingLength);
+					//printf("pendingLength=%d\n", pendingLength);
 					if(chunkData)
 					{
 						free(chunkData);
@@ -677,7 +717,6 @@ int pngnormal(char *filename, char *oldpng, long int size)
     return 0;
 
 NOT_COMPRESSED:
-	
 	if (!strstr(filename, ".PNG") && !strstr(filename, ".png"))
 	{
 		char filename_png[128];
@@ -685,6 +724,7 @@ NOT_COMPRESSED:
 		
 		sprintf(filename_png, "%s.png", filename);
         //printf("filename_png=%s\n", filename_png);
+		//printf("%p, size=%ld\n", oldpng, size);
 		write_png_data(filename_png, oldpng, size);
 		return 0;
 	}
@@ -1074,6 +1114,7 @@ int extract(char * file)
 
 	if (zbuf) {
 		free(zbuf);
+		zbuf = NULL;
 	}
 
 	/* determine .app directory in archive */
@@ -1118,6 +1159,7 @@ int extract(char * file)
 		plist_from_xml(zbuf, len, &info);
 	}
 	free(zbuf);
+	zbuf = NULL;
 
 	if (!info) {
 		//DEBUG( "Could not parse Info.plist!\n");
@@ -1245,8 +1287,9 @@ int extract(char * file)
 		
 		//newpng = (char *)malloc(len+1);
 		//memset(newpng, 0, len+1);
+		//printf("Weeds Debug pngnormal\n");
 		pngnormal(bundleicons, zbuf, len);
-		
+		//printf("Weeds Debug pngnormal done\n");
 		if (desired_120p)
 		{
 			if (strstr(bundleicons, ".PNG") || strstr(bundleicons, ".png"))
@@ -1268,6 +1311,7 @@ int extract(char * file)
 
 	if (zbuf) {
 		free(zbuf);
+		zbuf = NULL;
 	}
 	
 	//=============================Get BundleIcons========================
@@ -1373,6 +1417,7 @@ NOT_FOUND:
 			}
 		}
 		
+		//printf("Weeds Debug Line\n");
 		strcat(fulldir, bundleicons);
 		if (bundleicons && (NULL == strstr(bundleicons, ".png") && 
 			NULL == strstr(bundleicons, ".PNG")))
@@ -1386,7 +1431,9 @@ RETRY:
 		//DEBUG("fulldir = %s\n", fulldir);
 		//printf("fulldir=%s\n", fulldir);
 		if (zip_get_contents(zf, fulldir, 0, &zbuf, &len) == 0){
+			//printf("Weeds Debug pngnormal RETRY\n");
 			pngnormal(bundleicons, zbuf, len);
+			//printf("Weeds Debug pngnormal RETRY Done\n");
             notfoundicon = 0;
 		}
 		else {
@@ -1480,7 +1527,13 @@ CHECK_LAST:
 		}
 		
 		if (zbuf) {
-			free(zbuf);
+			//printf("Weeds Debug Free zbuf\n");
+			if (!pngerror)
+			{	//FIXME: This how happen I don't know either, Please help me fix this. why we cannot free it.
+				free(zbuf);
+			}
+			//printf("Weeds Debug Free zbuf done\n");
+			zbuf = NULL;
 		}
 	}
 	//=====================
@@ -1489,24 +1542,27 @@ CHECK_LAST:
 	/*char cmd[256];
 	snprintf(cmd, sizeof(cmd)-1, "python ipin.py %s ", bundleicons);
 	system(cmd);*/
-	
+	//printf("Weeds Debug Free info\n");
 	plist_free(info);
 	info = NULL;
 
 	if (!bundleexecutable) {
-		//DEBUG( "Could not determine value for CFBundleExecutable!\n");
+		//printf( "Could not determine value for CFBundleExecutable!\n");
 		zip_unchange_all(zf);
 		zip_close(zf);
 		zf = NULL;
-		//DEBUG( "error happened!");
 	}
+
 	if (zf)
 	{
-		//DEBUG("zf=%p\n", zf);
+		//printf("zf=%p\n", zf);
 		zip_unchange_all(zf);
-		//DEBUG("zf=%p\n", zf);
-		zip_close(zf);
-		//DEBUG("zf=%p\n", zf);
+		//printf("zf=%p\n", zf);
+		if (!pngerror) 
+		{  // FIXME:WHY ON WINDOWS zip_close(zf) would crash? I really don't know! and in short time, cannot find the result. 2015-9-18
+			zip_close(zf);
+		}
+		//printf("zf=%p\n", zf);
 		zf = NULL;
 	}
 
@@ -1517,52 +1573,58 @@ EXIT:
 		//plist_free(bname);
 		//free(bname);
 	}
-	
 	if (app_directory_name)
 	{
-		//DEBUG("app_directory_name=%p\n", app_directory_name);
+		//printf("app_directory_name=%p\n", app_directory_name);
 		free(app_directory_name);
+		//printf("done\n");
 	}
 	if (bundleicons)
 	{
-		//DEBUG("bundleicons=%p\n", bundleicons);
+		//printf("bundleicons=%p\n", bundleicons);
 		free(bundleicons);
+		//printf("done\n");
 	}
-	
 	if (bundleexecutable)
 	{
-		//DEBUG("bundleexecutable=%p\n", bundleexecutable);
+		//printf("bundleexecutable=%p\n", bundleexecutable);
 		free(bundleexecutable);
+		//printf("done\n");
 	}
 	if (bundleidentifier){
-		//DEBUG("bundleidentifier=%p\n", bundleidentifier);
+		//printf("bundleidentifier=%p\n", bundleidentifier);
 		free(bundleidentifier);
+		//printf("done\n");
 	}
-	
 	if (bundlename)
 	{
-		//DEBUG("bundlename=%p\n", bundlename);
+		//printf("bundlename=%p\n", bundlename);
 		free(bundlename);
+		//printf("done\n");
 	}
-	if (bundledisplayname)
-	{
-		//DEBUG("bundledisplayname=%p\n", bundledisplayname);
+	if (bundledisplayname && (!pngerror))
+	{//FIXME: I don't know what happened.
+		//printf("bundledisplayname=%p\n", bundledisplayname);
 		free(bundledisplayname);
+		//printf("done\n");
 	}
 	if (bundledevregion)
 	{
-		//DEBUG("bundledevregion=%p\n", bundledevregion);
+		//printf("bundledevregion=%p\n", bundledevregion);
 		free(bundledevregion);
+		//printf("done\n");
 	}
 	if (bundleversion)
 	{
-		//DEBUG("bundleshoartversion=%p\n", bundleversion);
+		//printf("bundleshoartversion=%p\n", bundleversion);
 		free(bundleversion);
+		//printf("done\n");
 	}
 	if (bundlever)
 	{
-		//DEBUG("bundleversion=%p\n", bundlever);
+		//printf("bundleversion=%p\n", bundlever);
 		free(bundlever);
+		//printf("done\n");
 	}
 }
 
@@ -1578,7 +1640,7 @@ int main(int argc, char **argv)
     memset(iconName, 0, sizeof(iconName));
     memset(absPath, 0, sizeof(absPath));
 	extract(argv[1]);
-
+	
 	return 0;
 
 }
