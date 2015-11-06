@@ -1,4 +1,9 @@
 # Parse-iOS-Package
+
+Dependency:
+libplist   -- https://github.com/libimobiledevice/libplist
+zlib       -- compression library
+
 Update 2015-7-29
 1. Fix bug that when desired icon not exist, it will goto forever loop.
 2. Add feature, when desired icon not exist, while the desired index > 0, we will do index-- and check different size again.
