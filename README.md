@@ -13,3 +13,7 @@ Update 2015-7-28
 while we can find the AppIcon60x60@2x and AppIcon60x60@3x. 
 
 Parse IPA package and get the information desired
+
+
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/qianguozheng/parse-ios-package/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+
